@@ -14,6 +14,7 @@ import { DistributeDividendsPanel } from "@/components/keys/DistributeDividendsP
 import { SupplyCapSettings } from "@/components/keys/SupplyCapSettings";
 import { WhitelistManager } from "@/components/keys/WhitelistManager";
 import { CurveMigrationTimeline } from "@/components/keys/CurveMigrationTimeline";
+import { PerformanceBondPanel } from "@/components/keys/PerformanceBondPanel";
 import { useCreatorKey, useKeySupply } from "@/hooks/useCreatorKeys";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -68,7 +69,9 @@ export function CreatorKeyDetail({ keyId }: CreatorKeyDetailProps) {
                   Back
                 </Link>
               </Button>
-              <h1 className="truncate text-2xl font-bold">{creatorKey.title}</h1>
+              <h1 className="truncate text-2xl font-bold">
+                {creatorKey.title}
+              </h1>
               <p className="text-sm text-muted-foreground">
                 Creator: {creatorKey.creator_name}
               </p>
@@ -111,30 +114,30 @@ export function CreatorKeyDetail({ keyId }: CreatorKeyDetailProps) {
             </button>
             {creatorKey.is_creator && (
               <>
-              <button
-                type="button"
-                className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === "settings"
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setActiveTab("settings")}
-                data-testid="settings-tab"
-              >
-                Settings
-              </button>
-              <button
-                type="button"
-                className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${
-                  activeTab === "whitelist"
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-                onClick={() => setActiveTab("whitelist")}
-                data-testid="whitelist-tab"
-              >
-                Whitelist
-              </button>
+                <button
+                  type="button"
+                  className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${
+                    activeTab === "settings"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setActiveTab("settings")}
+                  data-testid="settings-tab"
+                >
+                  Settings
+                </button>
+                <button
+                  type="button"
+                  className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${
+                    activeTab === "whitelist"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                  onClick={() => setActiveTab("whitelist")}
+                  data-testid="whitelist-tab"
+                >
+                  Whitelist
+                </button>
               </>
             )}
           </div>
@@ -161,6 +164,10 @@ export function CreatorKeyDetail({ keyId }: CreatorKeyDetailProps) {
             </Card>
           ) : null}
 
+          {activeTab === "overview" && (
+            <PerformanceBondPanel bond={creatorKey.performance_bond} />
+          )}
+
           {activeTab === "overview" && creatorKey.is_creator && (
             <>
               <CreatorVestingSection keyId={creatorKey.id} />
@@ -174,7 +181,10 @@ export function CreatorKeyDetail({ keyId }: CreatorKeyDetailProps) {
 
           {activeTab === "settings" && creatorKey.is_creator && (
             <>
-              <CurveMigrationTimeline keyId={creatorKey.id} isCreator={creatorKey.is_creator} />
+              <CurveMigrationTimeline
+                keyId={creatorKey.id}
+                isCreator={creatorKey.is_creator}
+              />
               <SupplyCapSettings keyId={creatorKey.id} />
             </>
           )}
