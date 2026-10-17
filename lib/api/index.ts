@@ -1744,3 +1744,198 @@ export async function fetchSubscriptionStatus(
     expiryDate: payload.expiryDate ?? payload.expiry_date ?? null,
   };
 }
+
+/* ─── Secondary market listings (#463) ──────────────────────────────────── */
+
+export const RESALE_INVOICE_TYPES: readonly Exclude<InvoiceCategory, "all">[] = [
+  "trade_finance",
+  "real_estate",
+  "sme",
+];
+
+export interface ResaleListing {
+  id: string;
+  invoice_id: string;
+  invoice_title: string;
+  invoice_type: string;
+  quantity: number;
+  remaining_quantity: number;
+  /** Price per fraction, in XLM. */
+  ask_price: number;
+  /** Value of one fraction at maturity, in XLM. */
+  maturity_value: number;
+  maturity_date: string;
+  /** Yield the invoice was issued at, shown beside the implied yield for comparison. */
+  original_yield_percentage?: number | null;
+  seller: string | null;
+  status: "active" | "sold" | "cancelled";
+}
+
+/* ─── Fee schedule (#440) ───────────────────────────────────────────────── */
+
+export type FeeType =
+  | "investment_fee"
+  | "secondary_market_fee"
+  | "settlement_fee"
+  | "early_exit_penalty";
+
+export interface FeeScheduleItem {
+  fee_type: FeeType;
+  label: string;
+  rate_percentage: number;
+  when_applies: string;
+  applies_to: "investor" | "issuer" | "both";
+}
+
+export interface FeeScheduleResponse {
+  fees: FeeScheduleItem[];
+  last_updated: string;
+}
+
+export interface IndustryBenchmark {
+  platform: string;
+  investment_fee: number;
+  secondary_market_fee: number;
+  settlement_fee: number;
+  early_exit_penalty: number;
+  source: string;
+  source_url?: string;
+}
+
+/**
+ * Competitor fee benchmarks for the fees page comparison table. Left empty
+ * until each row is backed by a cited source; never fill it with guessed rates.
+ */
+export const INDUSTRY_BENCHMARKS: IndustryBenchmark[] = [];
+
+export interface FeeChangeInput {
+  fee_type: FeeType;
+  rate_percentage: number;
+}
+
+export interface FeeChangeLogEntry {
+  id: string;
+  actor: string;
+  fee_type: FeeType;
+  old_rate_percentage: number;
+  new_rate_percentage: number;
+  changed_at: string;
+}
+
+/** Raised when the server rejects an admin-only call with 403. */
+export class ApiForbiddenError extends Error {
+  readonly status: number;
+
+  constructor(message = "Admin access required") {
+    super(message);
+    this.name = "ApiForbiddenError";
+    this.status = 403;
+  }
+}
+
+export async function fetchFeeSchedule(): Promise<FeeScheduleResponse> {
+  const res = await fetch(`${API_BASE}/fees`);
+  if (!res.ok) throw new Error("Failed to fetch fee schedule");
+  return res.json();
+}
+
+export async function updateFeeSchedule(
+  changes: FeeChangeInput[],
+  token?: string,
+): Promise<FeeScheduleResponse> {
+  const res = await fetch(`${API_BASE}/admin/fees`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ changes }),
+  });
+  if (res.status === 403) throw new ApiForbiddenError();
+  if (!res.ok) throw new Error(await readErrorMessage(res, "Failed to update fee schedule"));
+  return res.json();
+}
+
+export async function fetchFeeChangeHistory(token?: string): Promise<FeeChangeLogEntry[]> {
+  const res = await fetch(`${API_BASE}/admin/fees/history`, {
+    headers: authHeaders(token),
+  });
+  if (res.status === 403) throw new ApiForbiddenError();
+  if (!res.ok) throw new Error("Failed to fetch fee change history");
+  return res.json();
+}
+
+/* ─── Investor account settings (#444) ──────────────────────────────────── */
+
+export interface AccountProfile {
+  display_name: string;
+  avatar_url: string | null;
+  preferred_currency: "XLM" | "USD";
+  timezone: string;
+}
+
+export interface AccountSession {
+  id: string;
+  device: string;
+  ip_address: string | null;
+  last_active_at: string;
+  is_current: boolean;
+}
+
+export interface TwoFactorSetup {
+  secret: string;
+  otpauth_url: string;
+}
+
+async function readAccountError(res: Response, fallback: string): Promise<never> {
+  if (res.status === 403) throw new ApiForbiddenError("Not allowed");
+  throw new Error(await readErrorMessage(res, fallback));
+}
+
+export async function fetchAccountProfile(token?: string): Promise<AccountProfile> {
+  const res = await fetch(`${API_BASE}/users/me`, { headers: authHeaders(token) });
+  if (!res.ok) return readAccountError(res, "Failed to load profile");
+  return res.json();
+}
+
+export async function updateAccountProfile(
+  patch: Partial<AccountProfile>,
+  token?: string,
+): Promise<AccountProfile> {
+  const res = await fetch(`${API_BASE}/users/me`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) return readAccountError(res, "Failed to save profile");
+  return res.json();
+}
+
+export async function fetchAccountSessions(token?: string): Promise<AccountSession[]> {
+  const res = await fetch(`${API_BASE}/users/me/sessions`, { headers: authHeaders(token) });
+  if (!res.ok) return readAccountError(res, "Failed to load sessions");
+  return res.json();
+}
+
+export async function revokeAccountSession(sessionId: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/users/me/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) return readAccountError(res, "Failed to revoke session");
+}
+
+export async function startTwoFactorSetup(token?: string): Promise<TwoFactorSetup> {
+  const res = await fetch(`${API_BASE}/users/me/2fa/setup`, {
+    method: "POST",
+    headers: authHeaders(token),
+  });
+  if (!res.ok) return readAccountError(res, "Failed to start two-factor setup");
+  return res.json();
+}
+
+export async function confirmTwoFactorSetup(code: string, token?: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/users/me/2fa/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) return readAccountError(res, "Invalid verification code");
+}

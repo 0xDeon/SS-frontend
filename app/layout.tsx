@@ -5,6 +5,7 @@ import { Navbar, Footer } from "@/components/layout";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { NetworkBanner } from "@/components/network/NetworkBanner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -22,6 +23,8 @@ export default function RootLayout({
       <body>
         <TooltipProvider>
           <Providers>
+            {/* #443 — shown on every page while the testnet is selected */}
+            <NetworkBanner />
             <Navbar />
             {children}
             <Toaster />

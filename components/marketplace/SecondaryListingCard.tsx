@@ -1,13 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, TrendingUp } from "lucide-react";
+import { CalendarClock, Info, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { truncateAddress } from "@/lib/stellar";
-import { daysUntil, isSoldOut, listingImpliedYield } from "@/lib/secondaryMarket";
+import {
+  compareToOriginalYield,
+  daysUntil,
+  isSoldOut,
+  listingImpliedYield,
+  type YieldPricing,
+} from "@/lib/secondaryMarket";
 import type { ResaleListing } from "@/lib/api";
 
 function formatPrice(value: number): string {
@@ -16,6 +27,12 @@ function formatPrice(value: number): string {
     maximumFractionDigits: 4,
   });
 }
+
+const PRICING_BADGE: Record<YieldPricing, { label: string; className: string }> = {
+  discount: { label: "Discount", className: "border-green-500 text-green-600" },
+  premium: { label: "Premium", className: "border-red-500 text-red-600" },
+  par: { label: "At original", className: "" },
+};
 
 export function SecondaryListingSkeleton() {
   return (
@@ -50,6 +67,7 @@ export function SecondaryListingCard({
   isBuying,
 }: SecondaryListingCardProps) {
   const yieldPct = listingImpliedYield(listing);
+  const comparison = compareToOriginalYield(yieldPct, listing.original_yield_percentage);
   const days = daysUntil(listing.maturity_date);
   const soldOut = isSoldOut(listing);
   const isOwnListing =
@@ -87,7 +105,26 @@ export function SecondaryListingCard({
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground">Implied yield</p>
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <span>Implied yield</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="cursor-default"
+                    aria-label="How implied yield is calculated"
+                    data-testid={`listing-yield-tooltip-${listing.id}`}
+                  >
+                    <Info className="h-3 w-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-left">
+                  Annualised return from buying at the ask price: (maturity value − ask price) ÷
+                  ask price, scaled to a year over the days left until maturity. Updates as the
+                  ask price changes.
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p
               className="flex items-center gap-1 font-medium"
               data-testid={`listing-implied-yield-${listing.id}`}
@@ -95,6 +132,25 @@ export function SecondaryListingCard({
               <TrendingUp className="h-3.5 w-3.5" />
               {yieldPct.toFixed(2)}%
             </p>
+            <p className="text-xs text-muted-foreground" data-testid={`listing-original-yield-${listing.id}`}>
+              Original:{" "}
+              {listing.original_yield_percentage != null
+                ? `${listing.original_yield_percentage.toFixed(2)}%`
+                : "—"}
+            </p>
+            {comparison && (
+              <Badge
+                variant="outline"
+                className={`mt-1 ${PRICING_BADGE[comparison.pricing].className}`}
+                data-testid={`listing-pricing-badge-${listing.id}`}
+              >
+                {comparison.pricing === "par"
+                  ? PRICING_BADGE.par.label
+                  : `${comparison.differencePoints > 0 ? "+" : "−"}${Math.abs(
+                      comparison.differencePoints
+                    ).toFixed(2)} pts · ${PRICING_BADGE[comparison.pricing].label}`}
+              </Badge>
+            )}
           </div>
           <div>
             <p className="text-muted-foreground">Maturity</p>

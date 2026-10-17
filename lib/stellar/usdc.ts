@@ -7,6 +7,7 @@
  */
 
 import type { Network } from "@/lib/stellar";
+import { getDefaultNetwork } from "@/lib/stellar/network";
 
 export interface UsdcAsset {
   assetCode: string;
@@ -29,8 +30,10 @@ const HORIZON_URLS: Record<Network, string> = {
 
 function resolveHorizonUrl(network: Network): string {
   const fromEnv = process.env.NEXT_PUBLIC_STELLAR_HORIZON_URL;
-  // The env var is authoritative so a self-hosted Horizon or a test stub works.
-  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  // The env var is authoritative for the deployment's default network so a
+  // self-hosted Horizon or a test stub works. Switching to the other network
+  // (#443) always uses its public Horizon.
+  if (fromEnv && network === getDefaultNetwork()) return fromEnv.replace(/\/$/, "");
   return HORIZON_URLS[network];
 }
 

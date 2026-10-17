@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AdminInvoiceReview } from "@/components/admin/AdminInvoiceReview";
 import { AdminSettlements } from "@/components/admin/AdminSettlements";
 import { AuditLogViewer } from "@/components/admin/AuditLogViewer";
@@ -14,6 +15,12 @@ export default function AdminPage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
+      <div className="mb-4 flex justify-end">
+        {/* #440 — platform fee configuration */}
+        <Link href="/admin/fee-config" className="text-sm text-muted-foreground hover:text-foreground hover:underline">
+          Fee configuration →
+        </Link>
+      </div>
       <div className="mb-6 flex gap-4 border-b">
         <button
           type="button"
