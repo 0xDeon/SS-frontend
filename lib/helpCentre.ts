@@ -71,7 +71,7 @@ export const HELP_CENTRE_ARTICLES: HelpArticle[] = [
     id: "platform-fees",
     category: "platform",
     title: "What are the fees?",
-    body: "A protocol fee is taken from each settled invoice. The remaining face value and yield are distributed to investors automatically.",
+    body: "The platform charges transparent fees for investments, secondary market trades, settlements, and early exits. View the full breakdown and current rates on the fee schedule page.",
     views: 220,
   },
   {

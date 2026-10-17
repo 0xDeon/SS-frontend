@@ -1862,6 +1862,16 @@ export async function fetchFeeChangeHistory(token?: string): Promise<FeeChangeLo
   return res.json();
 }
 
+/**
+ * Fetches public fee history showing the last 5 rate changes.
+ * This is the public endpoint that doesn't require admin authentication (#466).
+ */
+export async function fetchPublicFeeHistory(): Promise<FeeChangeLogEntry[]> {
+  const res = await fetch(`${API_BASE}/fees/history`);
+  if (!res.ok) throw new Error("Failed to fetch fee history");
+  return res.json();
+}
+
 /* ─── Investor account settings (#444) ──────────────────────────────────── */
 
 export interface AccountProfile {

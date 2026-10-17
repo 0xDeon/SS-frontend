@@ -27,6 +27,7 @@ export default function RootLayout({
             <NetworkBanner />
             <Navbar />
             {children}
+            <Footer />
             <Toaster />
           </Providers>
         </TooltipProvider>
