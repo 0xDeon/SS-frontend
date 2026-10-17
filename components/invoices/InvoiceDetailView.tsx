@@ -37,6 +37,7 @@ import { isExpired } from "@/components/marketplace";
 import { InvestorDemandMetrics } from "@/components/marketplace/InvestorDemandMetrics";
 import { InvoiceTagPills } from "@/components/marketplace/InvoiceTagPills";
 import { SettlementCountdown } from "@/components/marketplace/SettlementCountdown";
+import { InvoiceFraudReport } from "@/components/invoices/InvoiceFraudReport";
 import { truncateAddress } from "@/lib/stellar";
 import { DEFAULT_MIN_INVESTMENT } from "@/lib/invoiceDefaults";
 import { Money } from "@/components/currency";
@@ -239,6 +240,7 @@ export function InvoiceDetailView({ invoiceId }: InvoiceDetailViewProps) {
               <DaysRemainingBadge dueDate={invoice.due_date} status={invoice.status} />
               <WatchlistButton invoiceId={invoice.id} />
               <ShareInvoiceButton invoiceId={invoice.id} title={invoice.title} />
+              <InvoiceFraudReport invoiceId={invoice.id} issuerId={invoice.seller} />
             </div>
           </div>
 
