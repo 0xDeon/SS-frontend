@@ -81,6 +81,33 @@ export function listingImpliedYield(
   return impliedYieldPercent(listing.ask_price, listing.maturity_value, listing.maturity_date, now);
 }
 
+export type YieldPricing = "discount" | "premium" | "par";
+
+export interface OriginalYieldComparison {
+  /** Implied yield minus original yield, in percentage points. */
+  differencePoints: number;
+  pricing: YieldPricing;
+}
+
+/**
+ * Compares a listing's implied yield with the yield its invoice was issued at
+ * (#463). Buying below the original pricing lifts the implied yield above the
+ * original, so that is a "discount"; the reverse is a "premium". Returns null
+ * when the original yield is missing or the implied yield is not meaningful (0).
+ */
+export function compareToOriginalYield(
+  impliedYield: number,
+  originalYield?: number | null
+): OriginalYieldComparison | null {
+  if (originalYield === null || originalYield === undefined) return null;
+  if (!Number.isFinite(originalYield) || !(impliedYield > 0)) return null;
+
+  const differencePoints = impliedYield - originalYield;
+  const pricing: YieldPricing =
+    Math.abs(differencePoints) < 0.005 ? "par" : differencePoints > 0 ? "discount" : "premium";
+  return { differencePoints, pricing };
+}
+
 /** Total cost of buying `quantity` fractions — used by the buy modal. */
 export function totalCost(askPrice: number, quantity: number): number {
   return askPrice * quantity;
