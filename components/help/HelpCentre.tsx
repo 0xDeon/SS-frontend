@@ -48,6 +48,19 @@ function HelpArticleAccordionItem({ article }: { article: HelpArticle }) {
           className="pb-3 text-sm text-muted-foreground"
         >
           {article.body}
+          {article.id === "platform-fees" && (
+            <>
+              {" "}
+              <a
+                href="/fees"
+                className="text-primary hover:underline"
+                data-testid="help-fees-link"
+              >
+                View the fee schedule
+              </a>
+              .
+            </>
+          )}
         </div>
       )}
     </div>

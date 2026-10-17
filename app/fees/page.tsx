@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/hooks/usePageTitle";
-import { fetchFeeSchedule, type FeeScheduleResponse, type FeeType, INDUSTRY_BENCHMARKS, type IndustryBenchmark } from "@/lib/api";
+import { fetchFeeSchedule, type FeeScheduleResponse, type FeeType, INDUSTRY_BENCHMARKS, type IndustryBenchmark, fetchPublicFeeHistory, type FeeChangeLogEntry } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Calculator, BarChart3, ExternalLink, Info, CheckCircle } from "lucide-react";
+import { AlertCircle, Calculator, BarChart3, ExternalLink, Info, CheckCircle, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -377,12 +377,187 @@ function FeeDetails({ fees }: { fees: FeeScheduleResponse["fees"] }) {
   );
 }
 
+function FeeHistory({ history, isLoading, error }: { history: FeeChangeLogEntry[] | null; isLoading: boolean; error: string | null }) {
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="size-5" />
+            Fee History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="size-5" />
+            Fee History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Unable to load fee history at this time.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!history || history.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="size-5" />
+            Fee History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            No historical fee changes available.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <History className="size-5" />
+          Fee History
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Recent fee rate changes (last 5)
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Fee Type</TableHead>
+                <TableHead className="text-right">Old Rate</TableHead>
+                <TableHead className="text-right">New Rate</TableHead>
+                <TableHead className="text-right">Change</TableHead>
+                <TableHead className="hidden md:table-cell">Transaction</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {history.map((entry) => {
+                const change = entry.new_rate_percentage - entry.old_rate_percentage;
+                const changePercent = ((change / entry.old_rate_percentage) * 100).toFixed(1);
+                const isIncrease = change > 0;
+                
+                return (
+                  <TableRow key={entry.id}>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {new Date(entry.changed_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs whitespace-nowrap">
+                        {entry.fee_type.replace(/_/g, " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {entry.old_rate_percentage}%
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold">
+                      {entry.new_rate_percentage}%
+                    </TableCell>
+                    <TableCell className="text-right text-sm">
+                      <span className={isIncrease ? "text-red-600" : "text-green-600"}>
+                        {isIncrease ? "+" : ""}
+                        {change.toFixed(2)}% ({isIncrease ? "+" : ""}
+                        {changePercent}%)
+                      </span>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-xs font-mono text-muted-foreground cursor-help">
+                              {entry.id.substring(0, 8)}...
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-xs break-all">
+                            <p className="font-mono text-xs">{entry.id}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Mobile-friendly stacked view */}
+        <div className="md:hidden space-y-3 mt-4">
+          {history.map((entry) => {
+            const change = entry.new_rate_percentage - entry.old_rate_percentage;
+            const changePercent = ((change / entry.old_rate_percentage) * 100).toFixed(1);
+            const isIncrease = change > 0;
+            
+            return (
+              <div key={entry.id} className="p-3 border rounded-lg bg-muted/30">
+                <div className="flex items-start justify-between mb-2">
+                  <Badge variant="outline" className="text-xs">
+                    {entry.fee_type.replace(/_/g, " ")}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(entry.changed_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {entry.old_rate_percentage}% → {entry.new_rate_percentage}%
+                  </span>
+                  <span className={isIncrease ? "text-red-600 font-medium" : "text-green-600 font-medium"}>
+                    {isIncrease ? "+" : ""}
+                    {change.toFixed(2)}%
+                  </span>
+                </div>
+                <div className="mt-2 pt-2 border-t">
+                  <p className="text-xs text-muted-foreground">
+                    Tx: {entry.id.substring(0, 16)}...
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function FeesPage() {
   usePageTitle("Fee Schedule");
   const [feeSchedule, setFeeSchedule] = useState<FeeScheduleResponse | null>(null);
+  const [feeHistory, setFeeHistory] = useState<FeeChangeLogEntry[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"schedule" | "examples" | "comparison" | "details">("schedule");
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"schedule" | "examples" | "comparison" | "details" | "history">("schedule");
+  
   useEffect(() => {
     async function loadFees() {
       try {
@@ -396,6 +571,21 @@ export default function FeesPage() {
       }
     }
     loadFees();
+  }, []);
+
+  useEffect(() => {
+    async function loadHistory() {
+      try {
+        const data = await fetchPublicFeeHistory();
+        setFeeHistory(data);
+      } catch (err) {
+        setHistoryError("Failed to load fee history.");
+        console.error(err);
+      } finally {
+        setIsHistoryLoading(false);
+      }
+    }
+    loadHistory();
   }, []);
 
   if (isLoading) {
@@ -444,15 +634,16 @@ export default function FeesPage() {
       <Tabs
         value={activeTab}
         onValueChange={(value) =>
-          setActiveTab(value as "schedule" | "examples" | "comparison" | "details")
+          setActiveTab(value as "schedule" | "examples" | "comparison" | "details" | "history")
         }
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="schedule">Fee Table</TabsTrigger>
           <TabsTrigger value="examples">Worked Examples</TabsTrigger>
           <TabsTrigger value="comparison">Industry Comparison</TabsTrigger>
           <TabsTrigger value="details">Full Details</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="schedule" className="mt-4">
@@ -469,6 +660,10 @@ export default function FeesPage() {
 
         <TabsContent value="details" className="mt-4">
           <FeeDetails fees={feeSchedule.fees} />
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-4">
+          <FeeHistory history={feeHistory} isLoading={isHistoryLoading} error={historyError} />
         </TabsContent>
       </Tabs>
 
