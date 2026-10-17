@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   ChevronDown,
   Loader2,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,6 +66,29 @@ const FILTER_OPTIONS = [
 ] as const;
 
 type FilterValue = (typeof FILTER_OPTIONS)[number]["value"];
+
+function exportActivityAsCSV(events: ActivityEvent[], filename = "activity-history.csv") {
+  const headers = ["Date", "Time", "Type", "Description", "Amount", "Currency"];
+  const rows = events.map((event) => [
+    format(new Date(event.timestamp), "yyyy-MM-dd"),
+    format(new Date(event.timestamp), "HH:mm:ss"),
+    TYPE_LABELS[event.type] || event.type,
+    event.description,
+    event.amount?.toString() ?? "",
+    event.currency ?? "",
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
 
 function mapFilterToTypes(filter: FilterValue): ActivityEventType[] | null {
   switch (filter) {
@@ -137,12 +161,17 @@ export function ActivityFeed() {
     );
   }
 
+  const handleExport = () => {
+    const filename = `activity-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    exportActivityAsCSV(events, filename);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" role="region" aria-label="Activity history">
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-wrap gap-2">
           <Select value={filter} onValueChange={(v) => setFilter(v as FilterValue)}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px]" aria-label="Filter events by type">
               <SelectValue placeholder="All Events" />
             </SelectTrigger>
             <SelectContent>
@@ -156,7 +185,11 @@ export function ActivityFeed() {
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                aria-label="Filter events by date range"
+              >
                 <Calendar className="h-4 w-4" />
                 <span>
                   {preset === "custom"
@@ -190,20 +223,34 @@ export function ActivityFeed() {
                 {preset === "custom" && (
                   <div className="space-y-2 pt-2 border-t">
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-                        max={new Date().toISOString().split("T")[0]}
-                      />
-                      <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-                        max={new Date().toISOString().split("T")[0]}
-                      />
+                      <div>
+                        <label htmlFor="start-date" className="text-xs font-medium block mb-1">
+                          Start Date
+                        </label>
+                        <input
+                          id="start-date"
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm w-full"
+                          max={new Date().toISOString().split("T")[0]}
+                          aria-label="Start date for activity filter"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="end-date" className="text-xs font-medium block mb-1">
+                          End Date
+                        </label>
+                        <input
+                          id="end-date"
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm w-full"
+                          max={new Date().toISOString().split("T")[0]}
+                          aria-label="End date for activity filter"
+                        />
+                      </div>
                     </div>
                     <Button
                       className="w-full"
@@ -216,10 +263,21 @@ export function ActivityFeed() {
               </div>
             </PopoverContent>
           </Popover>
+
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={events.length === 0}
+            className="gap-2"
+            aria-label="Export activity history as CSV"
+          >
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Export</span>
+          </Button>
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3" role="list">
         {events.map((event) => (
           <ActivityEventCard key={event.id} event={event} />
         ))}
@@ -258,7 +316,14 @@ function ActivityEventCard({ event }: { event: ActivityEvent }) {
   const typeLabel = TYPE_LABELS[event.type] || event.type;
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card
+      className="hover:shadow-md transition-shadow"
+      role="listitem"
+      aria-label={`${typeLabel}: ${event.description} on ${format(
+        new Date(event.timestamp),
+        "MMM d, yyyy"
+      )}`}
+    >
       <CardContent className="p-4">
         <div className="flex gap-4">
           <div className="flex-shrink-0">
