@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { FundingProgressBar } from "@/components/invoices/FundingProgressBar";
 import { CountdownTimer, isExpired } from "./countdown-timer";
 import { InvoiceTagPills } from "./InvoiceTagPills";
+import { InvoiceClassificationBadges } from "./InvoiceClassificationBadges";
+import { CompareToggleButton } from "./CompareToggleButton";
 import { SettlementCountdown } from "./SettlementCountdown";
 import { InvestorDemandMetrics } from "./InvestorDemandMetrics";
 import { useComparison } from "./InvoiceComparisonContext";
@@ -43,6 +45,7 @@ export function InvoiceCard({ invoice, onInvest }: InvoiceCardProps) {
             {invoice.status}
           </Badge>
         </div>
+        <InvoiceClassificationBadges invoice={invoice} />
         <InvoiceTagPills invoice={invoice} />
       </CardHeader>
 
@@ -56,7 +59,8 @@ export function InvoiceCard({ invoice, onInvest }: InvoiceCardProps) {
 
         <FundingProgressBar
           raised={invoice.raised}
-          target={invoice.amount}
+          target={invoice.max_funding_cap ?? invoice.amount}
+          minThreshold={invoice.min_funding_threshold}
           investorCount={invoice.investor_count}
         />
 

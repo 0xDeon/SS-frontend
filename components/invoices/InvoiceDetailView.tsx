@@ -35,6 +35,7 @@ import { useProtocolStatus } from "@/hooks/useProtocolStatus";
 import { useWallet } from "@/context/WalletContext";
 import { isExpired } from "@/components/marketplace";
 import { InvestorDemandMetrics } from "@/components/marketplace/InvestorDemandMetrics";
+import { InvoiceClassificationBadges } from "@/components/marketplace/InvoiceClassificationBadges";
 import { InvoiceTagPills } from "@/components/marketplace/InvoiceTagPills";
 import { SettlementCountdown } from "@/components/marketplace/SettlementCountdown";
 import { InvoiceFraudReport } from "@/components/invoices/InvoiceFraudReport";
@@ -284,11 +285,13 @@ export function InvoiceDetailView({ invoiceId }: InvoiceDetailViewProps) {
               labelled
             />
           </div>
+          <InvoiceClassificationBadges invoice={invoice} />
           <InvoiceTagPills invoice={invoice} />
         </CardContent>
       </Card>
 
-      {/* Funding progress: amount raised against the face value. */}
+      {/* Funding progress: amount raised against the cap, with the minimum
+          threshold marked when the invoice has one (#462). */}
       <Card>
         <CardHeader>
           <h2 className="text-lg font-semibold">Funding progress</h2>
@@ -296,7 +299,8 @@ export function InvoiceDetailView({ invoiceId }: InvoiceDetailViewProps) {
         <CardContent>
           <FundingProgressBar
             raised={invoice.raised}
-            target={invoice.amount}
+            target={invoice.max_funding_cap ?? invoice.amount}
+            minThreshold={invoice.min_funding_threshold}
             investorCount={invoice.investor_count}
           />
           <div className="mt-3">

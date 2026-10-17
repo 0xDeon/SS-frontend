@@ -52,7 +52,7 @@ export function AdminInvoiceReview({ isAdmin: propIsAdmin }: AdminInvoiceReviewP
     error,
   } = useQuery<PendingInvoice[]>({
     queryKey: ADMIN_PENDING_INVOICES_QUERY_KEY,
-    queryFn: fetchPendingInvoices,
+    queryFn: () => fetchPendingInvoices(),
     enabled: isAuthorised,
   });
 
