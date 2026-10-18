@@ -1,4 +1,7 @@
 import type { InvestmentPosition } from "@/lib/portfolio";
+import type { KycTier } from "@/lib/kycTier";
+
+export type { KycTier };
 
 export interface Invoice {
   id: string;
@@ -527,6 +530,40 @@ export async function fetchSellerKycStatus(
   });
   if (!res.ok) throw new Error("Failed to fetch KYC status");
   return normalizeSellerKycStatus(await res.json());
+}
+
+/**
+ * On-chain KYC tier status (#475).
+ *
+ * The `kyc_tier` contract records the tier for each investor address and the
+ * registrar keeps the running commitment totals used here; the backend exposes
+ * a read-only view of it. The wallet address is therefore an explicit input —
+ * the tier is a property of the address, not of this browser session.
+ */
+export interface KycTierStatus {
+  address: string;
+  tier: KycTier;
+  /** Total committed across all invoices, in XLM. */
+  cumulative_invested: number;
+  /** Largest single-invoice commitment held, in XLM. */
+  largest_commitment: number;
+  /** Per-invoice cap at this tier; `null` when uncapped. */
+  per_invoice_limit?: number | null;
+  /** Cumulative cap at this tier; `null` when uncapped. */
+  cumulative_limit?: number | null;
+  updated_at: string;
+}
+
+export async function fetchKycTierStatus(
+  address: string,
+  token?: string,
+): Promise<KycTierStatus> {
+  const params = new URLSearchParams({ address });
+  const res = await fetch(`${API_BASE}/kyc/tier?${params.toString()}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to fetch KYC tier status");
+  return res.json();
 }
 
 export type NotificationEventType =

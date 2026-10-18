@@ -135,6 +135,7 @@ lib/
 
 - `app/kyc/start`, `app/kyc/reapply`, `app/kyc/confirmed` implement the seller KYC flow.
 - `submitKyc()` and `fetchSellerKycStatus()` in `lib/api/index.ts`; status is one of the values in `SellerKycStatusValue`, surfaced via `KycStatusBanner`/`KycSubmissionForm`.
+- **KYC tier limits** (#475): `app/kyc/upgrade` is the tier upgrade flow; `lib/kycTier.ts` defines the Basic/Verified/Accredited tiers with per-invoice and cumulative caps, and `useKycTier` reads the on-chain `kyc_tier` status (`fetchKycTierStatus()`). The investor profile shows a `KycTierBadge` in its header plus a `KycTierPanel` with limit progress bars and an upgrade prompt at 80% cumulative usage.
 
 ### Invoice Marketplace (Sellers & Investors)
 
