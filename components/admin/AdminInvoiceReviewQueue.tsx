@@ -5,6 +5,9 @@
  *
  * Pending invoices table with approve / reject actions, rejection reason modal,
  * and approved / rejected history tabs. Route is admin-only.
+ *
+ * Each pending invoice must have a category and risk tier assigned (#468)
+ * before it can be approved to live, since both gate who may invest.
  */
 
 import { useState } from "react";
@@ -27,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InvoiceClassificationForm, isInvoiceClassified } from "@/components/admin/InvoiceClassificationForm";
+import { InvoiceClassificationBadges } from "@/components/marketplace/InvoiceClassificationBadges";
 
 type Tab = "pending" | "approved" | "rejected";
 
@@ -71,6 +76,9 @@ function HistoryTab({ status, jwt }: { status: "approved" | "rejected"; jwt: str
             <div>
               <p className="font-medium">{inv.title}</p>
               <p className="text-muted-foreground text-xs">{formatXLM(inv.face_value)} · Reviewed {formatDate(inv.reviewed_at)}</p>
+              <div className="mt-1">
+                <InvoiceClassificationBadges invoice={{ id: inv.id, category: inv.category ?? undefined, risk_tier: inv.risk_tier ?? undefined }} />
+              </div>
               {inv.rejection_reason && (
                 <p className="text-xs text-destructive mt-1">Reason: {inv.rejection_reason}</p>
               )}
@@ -103,6 +111,12 @@ export function AdminInvoiceReviewQueue() {
     queryFn: () => fetchPendingInvoices(jwt ?? undefined),
     enabled: !!jwt,
   });
+
+  const handleClassificationSaved = (id: string, saved: { category: string; risk_tier: string }) => {
+    queryClient.setQueryData<PendingInvoice[]>(["admin-pending-invoices", jwt], (prev) =>
+      prev?.map((i) => (i.id === id ? { ...i, ...saved } : i)) ?? []
+    );
+  };
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => approveInvoice(id, jwt ?? undefined),
@@ -159,11 +173,14 @@ export function AdminInvoiceReviewQueue() {
                       <th className="p-3 font-medium">Face Value</th>
                       <th className="p-3 font-medium">Submitted</th>
                       <th className="p-3 font-medium">Docs</th>
+                      <th className="p-3 font-medium">Category &amp; risk tier</th>
                       <th className="p-3 font-medium text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {invoices.map((inv) => (
+                    {invoices.map((inv) => {
+                      const classified = isInvoiceClassified(inv);
+                      return (
                       <tr key={inv.id} data-testid={`pending-row-${inv.id}`} className="hover:bg-muted/30">
                         <td className="p-3 font-medium">{inv.title}</td>
                         <td className="p-3 font-mono text-xs text-muted-foreground">{inv.seller.slice(0, 12)}…</td>
@@ -174,6 +191,20 @@ export function AdminInvoiceReviewQueue() {
                             ? <a href={inv.document_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-primary hover:underline"><FileText className="h-3 w-3" />View</a>
                             : <span className="text-xs text-muted-foreground">—</span>
                           }
+                        </td>
+                        <td className="p-3">
+                          <InvoiceClassificationForm
+                            invoiceId={inv.id}
+                            category={inv.category}
+                            riskTier={inv.risk_tier}
+                            token={jwt}
+                            onSaved={(saved) => handleClassificationSaved(inv.id, saved)}
+                          />
+                          {!classified && (
+                            <p className="mt-1 text-xs text-amber-700" data-testid={`classification-required-${inv.id}`}>
+                              Required before approval
+                            </p>
+                          )}
                         </td>
                         <td className="p-3 text-right">
                           {rejectingId === inv.id ? (
@@ -196,7 +227,8 @@ export function AdminInvoiceReviewQueue() {
                           ) : (
                             <div className="flex items-center justify-end gap-2">
                               <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white"
-                                disabled={approveMutation.isPending}
+                                disabled={!classified || approveMutation.isPending}
+                                title={classified ? undefined : "Assign a category and risk tier first"}
                                 onClick={() => approveMutation.mutate(inv.id)}
                                 data-testid={`approve-btn-${inv.id}`}>
                                 <CheckCircle className="h-4 w-4 mr-1" />Approve
@@ -210,7 +242,8 @@ export function AdminInvoiceReviewQueue() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

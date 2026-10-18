@@ -12,6 +12,10 @@ export interface Invoice {
   yield_percentage?: number;
   /** Minimum investment amount in XLM required for this invoice (#436). */
   min_investment?: number;
+  /** Amount the invoice must raise before it can proceed (#462). */
+  min_funding_threshold?: number | null;
+  /** Maximum the invoice will accept; falls back to `amount` when absent (#462). */
+  max_funding_cap?: number | null;
   rejection_reason?: string;
   /** Risk grade (A = safest). Used to gate investing by suitability tier (#391). */
   risk_rating?: { tier: "A" | "B" | "C" | "D"; score?: number };
@@ -410,6 +414,101 @@ export async function fetchKycStatus(): Promise<KycStatus> {
   return res.json();
 }
 
+/* ─── Issuer KYC documents (issue #469) ─────────────────────────────────── */
+
+export const KYC_DOCUMENT_TYPES = [
+  "business_registration",
+  "director_id",
+  "proof_of_address",
+] as const;
+
+export type KycDocumentType = (typeof KYC_DOCUMENT_TYPES)[number];
+
+export type KycDocumentState = "pending" | "approved" | "rejected" | "expired";
+
+export interface KycDocumentStatus {
+  type: KycDocumentType;
+  status: KycDocumentState;
+  submitted_at: string | null;
+  /** When an admin approved the document. */
+  verified_at: string | null;
+  /** When an approved document stops being valid. */
+  expires_at: string | null;
+  rejection_reason: string | null;
+}
+
+const KYC_DOCUMENT_STATES: KycDocumentState[] = [
+  "pending",
+  "approved",
+  "rejected",
+  "expired",
+];
+
+function normalizeKycDocument(raw: any): KycDocumentStatus | null {
+  const type = raw?.type ?? raw?.document_type ?? raw?.documentType;
+  if (!(KYC_DOCUMENT_TYPES as readonly string[]).includes(type)) return null;
+  const rawStatus = String(raw.status ?? "").toLowerCase();
+  return {
+    type,
+    status: KYC_DOCUMENT_STATES.includes(rawStatus as KycDocumentState)
+      ? (rawStatus as KycDocumentState)
+      : "pending",
+    submitted_at: raw.submitted_at ?? raw.submittedAt ?? null,
+    verified_at: raw.verified_at ?? raw.verifiedAt ?? raw.reviewed_at ?? null,
+    expires_at: raw.expires_at ?? raw.expiresAt ?? raw.expiry_date ?? null,
+    rejection_reason:
+      raw.rejection_reason ?? raw.rejectionReason ?? raw.reason ?? null,
+  };
+}
+
+/** Verification state of each issuer KYC document. Unknown types are dropped. */
+export async function fetchKycDocuments(
+  token?: string,
+): Promise<KycDocumentStatus[]> {
+  const res = await fetch(`${API_BASE}/kyc/documents`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to fetch KYC documents");
+  const payload = await res.json();
+  const docs = Array.isArray(payload) ? payload : (payload.documents ?? []);
+  return docs
+    .map(normalizeKycDocument)
+    .filter((d: KycDocumentStatus | null): d is KycDocumentStatus => d !== null);
+}
+
+/**
+ * Replaces a rejected or expired document with a newly uploaded one. The
+ * backend resets the document to `pending`; that is assumed if it omits it.
+ */
+export async function resubmitKycDocument(
+  type: KycDocumentType,
+  documentUrl: string,
+  token?: string,
+): Promise<KycDocumentStatus> {
+  const res = await fetch(
+    `${API_BASE}/kyc/documents/${encodeURIComponent(type)}/resubmit`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify({ document_url: documentUrl }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res, "Failed to resubmit document"));
+  }
+  const payload = await res.json().catch(() => null);
+  return (
+    normalizeKycDocument({ type, ...payload, status: payload?.status ?? "pending" }) ?? {
+      type,
+      status: "pending",
+      submitted_at: new Date().toISOString(),
+      verified_at: null,
+      expires_at: null,
+      rejection_reason: null,
+    }
+  );
+}
+
 export async function uploadDocument(file: File): Promise<{ url: string }> {
   const formData = new FormData();
   formData.append("file", file);
@@ -773,6 +872,112 @@ export async function rejectAdminInvoice(
   });
   if (!res.ok) throw new Error("Failed to reject invoice");
   return res.json();
+}
+
+/* ─── Admin review queue + classification (issues #384, #468) ───────────── */
+
+export interface PendingInvoice {
+  id: string;
+  title: string;
+  seller: string;
+  face_value: number;
+  submission_date: string;
+  status: string;
+  document_url?: string;
+  /** Sector assigned by an admin; required before approval (#468). */
+  category?: string | null;
+  /** Risk tier assigned by an admin; required before approval (#468). */
+  risk_tier?: string | null;
+}
+
+export interface ReviewedInvoice {
+  id: string;
+  title: string;
+  face_value: number;
+  reviewed_at: string;
+  rejection_reason?: string | null;
+  category?: string | null;
+  risk_tier?: string | null;
+}
+
+export interface ReviewedInvoicesResponse {
+  invoices: ReviewedInvoice[];
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+export interface InvoiceClassification {
+  category: string;
+  risk_tier: string;
+}
+
+/** Invoices waiting for an admin decision. Accepts a bare array or `{ invoices }`. */
+export async function fetchPendingInvoices(
+  token?: string,
+): Promise<PendingInvoice[]> {
+  const params = new URLSearchParams({ status: "pending_review" });
+  const res = await fetch(`${API_BASE}/admin/invoices?${params}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error("Failed to fetch pending invoices");
+  const payload = await res.json();
+  return Array.isArray(payload) ? payload : (payload.invoices ?? []);
+}
+
+export async function fetchReviewedInvoices(
+  status: "approved" | "rejected",
+  cursor?: string,
+  token?: string,
+): Promise<ReviewedInvoicesResponse> {
+  const params = new URLSearchParams({ status });
+  if (cursor) params.set("cursor", cursor);
+  const res = await fetch(`${API_BASE}/admin/invoices?${params}`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`Failed to fetch ${status} invoices`);
+  return res.json();
+}
+
+export async function approveInvoice(
+  invoiceId: string,
+  token?: string,
+): Promise<{ success: boolean }> {
+  return approveAdminInvoice(invoiceId, token);
+}
+
+export async function rejectInvoice(
+  invoiceId: string,
+  reason: string,
+  token?: string,
+): Promise<{ success: boolean }> {
+  return rejectAdminInvoice(invoiceId, reason, token);
+}
+
+/** Saves the admin-assigned category and risk tier for a pending invoice (#468). */
+export async function assignInvoiceClassification(
+  invoiceId: string,
+  classification: InvoiceClassification,
+  token?: string,
+): Promise<InvoiceClassification> {
+  const res = await fetch(
+    `${API_BASE}/admin/invoices/${encodeURIComponent(invoiceId)}/classification`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders(token) },
+      body: JSON.stringify(classification),
+    },
+  );
+  if (!res.ok) {
+    if (res.status === 403) throw new Error("Admin access required");
+    throw new Error(
+      await readErrorMessage(res, "Failed to save category and risk tier"),
+    );
+  }
+  const payload = await res.json().catch(() => ({}));
+  return {
+    category: payload?.category ?? classification.category,
+    risk_tier: payload?.risk_tier ?? classification.risk_tier,
+  };
 }
 
 export interface PayoutRecord {
@@ -1503,6 +1708,115 @@ export async function fetchWalletActivity(
 
   return {
     events: events.map(normalizeWalletActivityEvent),
+    has_more: payload.has_more ?? payload.hasMore ?? false,
+    next_cursor: payload.next_cursor ?? payload.nextCursor ?? null,
+  };
+}
+
+/* ─── Wallet transaction history (issue #294) ───────────────────────────── */
+
+export const PLATFORM_TRANSACTION_TYPES = [
+  "invest",
+  "claim",
+  "list",
+  "cancel",
+  "settle",
+] as const;
+
+export type PlatformTransactionType =
+  (typeof PLATFORM_TRANSACTION_TYPES)[number];
+
+export type PlatformTransactionStatus = "success" | "pending" | "failed";
+
+export interface PlatformTransaction {
+  id: string;
+  type: PlatformTransactionType;
+  amount: number;
+  currency: string;
+  status: PlatformTransactionStatus;
+  createdAt: string;
+  /** On-chain hash; absent while a transaction has not been submitted. */
+  txHash: string | null;
+  invoiceId?: string;
+  invoiceTitle?: string;
+}
+
+export interface PlatformTransactionsResponse {
+  transactions: PlatformTransaction[];
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+/** Maps the backend's spellings onto the five labels the page shows. */
+const TRANSACTION_TYPE_ALIASES: Record<string, PlatformTransactionType> = {
+  invest: "invest",
+  investment: "invest",
+  buy: "invest",
+  claim: "claim",
+  claim_returns: "claim",
+  list: "list",
+  listing: "list",
+  list_fraction: "list",
+  cancel: "cancel",
+  cancel_listing: "cancel",
+  settle: "settle",
+  settlement: "settle",
+};
+
+function normalizeTransactionStatus(raw: unknown): PlatformTransactionStatus {
+  const value = String(raw ?? "").toLowerCase();
+  if (["failed", "error", "reverted"].includes(value)) return "failed";
+  if (["pending", "submitted", "processing"].includes(value)) return "pending";
+  return "success";
+}
+
+function normalizePlatformTransaction(raw: any): PlatformTransaction | null {
+  const rawType = String(raw?.type ?? raw?.tx_type ?? raw?.event_type ?? "")
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  const type = TRANSACTION_TYPE_ALIASES[rawType];
+  if (!type) return null;
+  return {
+    id: String(raw.id ?? raw.tx_hash ?? raw.hash ?? ""),
+    type,
+    amount: Number(raw.amount ?? 0),
+    currency: raw.currency ?? raw.asset ?? "XLM",
+    status: normalizeTransactionStatus(raw.status),
+    createdAt: raw.created_at ?? raw.createdAt ?? raw.timestamp ?? "",
+    txHash: raw.tx_hash ?? raw.txHash ?? raw.hash ?? null,
+    invoiceId: raw.invoice_id ?? raw.invoiceId ?? undefined,
+    invoiceTitle: raw.invoice_title ?? raw.invoiceTitle ?? undefined,
+  };
+}
+
+/**
+ * One page of the connected wallet's platform transactions, newest first.
+ * Types outside the five the page understands are dropped.
+ */
+export async function fetchWalletTransactions(
+  address: string,
+  options: { cursor?: string; type?: PlatformTransactionType } = {},
+  token?: string,
+): Promise<PlatformTransactionsResponse> {
+  const params = new URLSearchParams();
+  if (options.cursor) params.set("cursor", options.cursor);
+  if (options.type) params.set("type", options.type);
+
+  const res = await fetch(
+    `${API_BASE}/wallets/${encodeURIComponent(address)}/transactions?${params}`,
+    { headers: authHeaders(token) },
+  );
+  if (!res.ok) throw new Error("Failed to fetch transactions");
+
+  const payload = await res.json();
+  const rows = Array.isArray(payload)
+    ? payload
+    : (payload.transactions ?? payload.events ?? []);
+
+  return {
+    transactions: rows
+      .map(normalizePlatformTransaction)
+      .filter((t: PlatformTransaction | null): t is PlatformTransaction => t !== null),
     has_more: payload.has_more ?? payload.hasMore ?? false,
     next_cursor: payload.next_cursor ?? payload.nextCursor ?? null,
   };

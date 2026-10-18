@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Wallet, Bookmark, Activity } from "lucide-react";
+import { Wallet, Bookmark, Activity, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useStellarWallet } from "@/hooks/useStellarWallet";
@@ -39,6 +39,13 @@ export function Navbar() {
               >
                 <Activity className="h-4 w-4" />
                 Activity
+              </Link>
+              <Link
+                href="/transactions"
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <Receipt className="h-4 w-4" />
+                Transactions
               </Link>
               <Link
                 href="/watchlist"
