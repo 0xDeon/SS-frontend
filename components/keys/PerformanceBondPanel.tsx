@@ -63,7 +63,7 @@ export function PerformanceBondPanel({ bond }: PerformanceBondPanelProps) {
                   The performance bond is a guarantee that protects investors.
                   If the creator fails to meet their obligations, the bond can
                   be forfeited to compensate investors. A staked bond indicates
-                  the creator's commitment to deliver on their promises.
+                  the creator&apos;s commitment to deliver on their promises.
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -81,7 +81,7 @@ export function PerformanceBondPanel({ bond }: PerformanceBondPanelProps) {
             {formattedAmount} XLM
           </span>
         </div>
-
+              creator&apos;s commitment to deliver on their promises.
         {/* Bond State */}
         <div className="flex justify-between items-center">
           <span className="text-sm text-muted-foreground">Current State</span>

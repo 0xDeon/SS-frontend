@@ -337,6 +337,7 @@ export function InvoiceDetailView({ invoiceId }: InvoiceDetailViewProps) {
       )}
 
       <InvoiceDocumentsTab
+        invoiceId={invoice.id}
         documentUrl={invoice.document_url ?? null}
         additionalDocuments={invoice.documents ?? []}
       />
