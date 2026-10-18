@@ -90,6 +90,32 @@ describe("DocumentVerificationBadge (#412)", () => {
 });
 
 describe("InvoiceDocumentsTab + verification", () => {
+  it("offers bulk export when only additional documents are attached", () => {
+    renderWithQuery(
+      <InvoiceDocumentsTab
+        invoiceId="test-invoice"
+        documentUrl={null}
+        additionalDocuments={[`ipfs://${CID}/supporting.pdf`, `ipfs://${CID}/invoice.png`]}
+      />,
+    );
+
+    expect(screen.getByTestId("document-bulk-export-button")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "supporting.pdf" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "invoice.png" })).toBeInTheDocument();
+  });
+
+  it("renders a single supporting document when no primary document exists", () => {
+    renderWithQuery(
+      <InvoiceDocumentsTab
+        invoiceId="test-invoice"
+        documentUrl={null}
+        additionalDocuments={[`ipfs://${CID}/supporting.pdf`]}
+      />,
+    );
+
+    expect(screen.getByRole("tab", { name: "supporting.pdf" })).toBeInTheDocument();
+  });
+
   it("does not block document viewing while verification is in progress", async () => {
     // HEAD probe for the viewer succeeds; the raw-block verification fetch hangs.
     vi.stubGlobal(
@@ -101,7 +127,9 @@ describe("InvoiceDocumentsTab + verification", () => {
       ),
     );
 
-    renderWithQuery(<InvoiceDocumentsTab documentUrl={`ipfs://${CID}/invoice.pdf`} />);
+    renderWithQuery(
+      <InvoiceDocumentsTab invoiceId="test-invoice" documentUrl={`ipfs://${CID}/invoice.pdf`} />,
+    );
 
     expect(await screen.findByTestId("document-inline-pdf")).toBeInTheDocument();
     await waitFor(() =>

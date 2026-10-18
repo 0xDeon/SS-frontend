@@ -59,7 +59,7 @@ interface IssuerProfile {
   }>;
 }
 
-async function IssuerProfileContent({ issuer }: { issuer: IssuerProfile }) {
+function IssuerProfileContent({ issuer }: { issuer: IssuerProfile }) {
   const activeInvoices = issuer.invoices.filter((inv) => inv.status === "active");
 
   return (
@@ -124,7 +124,7 @@ async function IssuerProfileContent({ issuer }: { issuer: IssuerProfile }) {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">
-              <Money amount={issuer.totalCapitalRaised} className="text-3xl font-bold" />
+              <Money xlm={issuer.totalCapitalRaised} className="text-3xl font-bold" />
             </div>
           </CardContent>
         </Card>
@@ -148,7 +148,7 @@ async function IssuerProfileContent({ issuer }: { issuer: IssuerProfile }) {
                   <div className="flex-1">
                     <h4 className="font-medium">{invoice.title}</h4>
                     <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                      <span>Face Value: <Money amount={invoice.faceValue} /></span>
+                      <span>Face Value: <Money xlm={invoice.faceValue} /></span>
                       <span>Yield: {invoice.yield}%</span>
                       <span>Maturity: {new Date(invoice.maturityDate).toLocaleDateString()}</span>
                     </div>
@@ -188,7 +188,7 @@ async function IssuerProfileContent({ issuer }: { issuer: IssuerProfile }) {
                       </Link>
                     </td>
                     <td className="text-right py-3 px-2">
-                      <Money amount={invoice.faceValue} />
+                      <Money xlm={invoice.faceValue} />
                     </td>
                     <td className="text-right py-3 px-2">{invoice.yield}%</td>
                     <td className="text-center py-3 px-2">
@@ -208,7 +208,7 @@ async function IssuerProfileContent({ issuer }: { issuer: IssuerProfile }) {
   );
 }
 
-export default async function IssuerProfilePage() {
+export default function IssuerProfilePage() {
   const params = useParams<{ id: string }>();
 
   const mockIssuer: IssuerProfile = {

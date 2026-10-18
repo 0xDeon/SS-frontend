@@ -6,12 +6,90 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchInvoices, resolveInvoiceCategory, type Invoice, type InvoiceCategory } from "@/lib/api";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { FundingProgressBar } from "@/components/invoices";
+import {
+  ActiveTaxonomyChips,
+  CompareToggleButton,
+  ComparisonProvider,
+  FeaturedInvoicesCarousel,
+  FilterPanel,
+  InvoiceComparisonBar,
+  InvoiceTagPills,
+  InvestorDemandMetrics,
+  MarketplaceFilterBar,
+  SettlementCountdown,
+  TaxonomyFilterPanel,
+  isExpired,
+  type FundingStatus,
+  type MarketplaceFilterState,
+} from "@/components/marketplace";
+import {
+  SORT_LABELS,
+  SORT_OPTIONS,
+  searchInvoices,
+  sortInvoices,
+  type MarketplaceSort,
+} from "@/components/marketplace/MarketplaceSearchBar";
+import {
+  EMPTY_TAXONOMY_FILTERS,
+  applyTaxonomyFilters,
+  filterByTaxonomy,
+  hasActiveTaxonomyFilters,
+  parseTaxonomyFilters,
+  removeTaxonomyFilterValue,
+  type FilterChip,
+  type TaxonomyFilterState,
+} from "@/lib/invoiceTaxonomy";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvoiceCardSkeleton } from "@/components/ui/skeletons";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WatchlistButton } from "@/components/marketplace/WatchlistButton";
 import { Money, ExchangeRateDisclaimer } from "@/components/currency";
+import { ArrowDown, ArrowUp, Loader2 } from "lucide-react";
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+const DEFAULT_PAGE_SIZE: PageSize = 25;
+
+function parsePageSize(raw: string | null): PageSize {
+  const parsed = Number(raw);
+  return (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed)
+    ? (parsed as PageSize)
+    : DEFAULT_PAGE_SIZE;
+}
+
+type SortField = "amount" | "due_date" | null;
+type SortDirection = "asc" | "desc";
+
+function SortHeader({
+  label,
+  field,
+  activeField,
+  activeDirection,
+  onSort,
+}: {
+  label: string;
+  field: SortField;
+  activeField: SortField;
+  activeDirection: SortDirection;
+  onSort: (field: SortField) => void;
+}) {
+  const isActive = activeField === field;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(field)}
+      className="inline-flex items-center gap-1 text-sm font-medium transition-colors hover:text-foreground"
+      data-testid={`sort-${field}`}
+    >
+      {label}
+      {isActive && activeDirection === "asc" && <ArrowUp className="size-3" />}
+      {isActive && activeDirection === "desc" && <ArrowDown className="size-3" />}
+    </button>
+  );
+}
 
 function InvoiceRow({ invoice }: { invoice: Invoice }) {
   return (
