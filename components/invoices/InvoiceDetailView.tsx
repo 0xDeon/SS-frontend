@@ -44,6 +44,7 @@ import { InvoiceFraudReport } from "@/components/invoices/InvoiceFraudReport";
 import { truncateAddress } from "@/lib/stellar";
 import { DEFAULT_MIN_INVESTMENT } from "@/lib/invoiceDefaults";
 import { Money } from "@/components/currency";
+import { CurrencyToggle } from "@/components/layout/CurrencyToggle";
 
 function InvoiceDetailSkeleton() {
   return (
@@ -251,6 +252,7 @@ export function InvoiceDetailView({ invoiceId }: InvoiceDetailViewProps) {
               </div>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <CurrencyToggle showRate={false} />
               <InvoiceStatusBadge status={invoice.status} />
               <DaysRemainingBadge dueDate={invoice.due_date} status={invoice.status} />
               <WatchlistButton invoiceId={invoice.id} />

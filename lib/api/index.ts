@@ -308,6 +308,21 @@ export async function fetchXlmUsdRate(): Promise<XlmUsdRate> {
   return res.json();
 }
 
+/**
+ * FX oracle rates for the display-currency toggle (#504): the value of 1 XLM
+ * in USDC, EURC and NGNC, plus when the oracle last updated.
+ */
+export interface FxRatesResponse {
+  rates: { USD?: number; EUR?: number; NGN?: number };
+  updated_at: string;
+}
+
+export async function fetchFxRates(): Promise<FxRatesResponse> {
+  const res = await fetch(`${API_BASE}/rates/fx`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch FX rates");
+  return res.json();
+}
+
 export interface InvestInInvoiceResult {
   success: boolean;
   invested_amount: number;
