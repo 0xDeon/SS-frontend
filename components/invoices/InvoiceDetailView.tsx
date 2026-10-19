@@ -35,6 +35,7 @@ import { usePageTitle } from "@/hooks/usePageTitle";
 import { useProtocolStatus } from "@/hooks/useProtocolStatus";
 import { useWallet } from "@/context/WalletContext";
 import { isExpired } from "@/components/marketplace";
+import { OrderBookDepthChart } from "@/components/marketplace/OrderBookDepthChart";
 import { InvestorDemandMetrics } from "@/components/marketplace/InvestorDemandMetrics";
 import { InvoiceClassificationBadges } from "@/components/marketplace/InvoiceClassificationBadges";
 import { InvoiceTagPills } from "@/components/marketplace/InvoiceTagPills";
@@ -326,6 +327,8 @@ export function InvoiceDetailView({ invoiceId }: InvoiceDetailViewProps) {
           )}
         </CardContent>
       </Card>
+
+      <OrderBookDepthChart invoiceId={invoice.id} />
 
       {/* Invest CTA — KYC gated. */}
       {isOpenForInvestment ? (

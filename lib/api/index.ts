@@ -2302,3 +2302,32 @@ export async function confirmTwoFactorSetup(code: string, token?: string): Promi
   });
   if (!res.ok) return readAccountError(res, "Invalid verification code");
 }
+
+/* ─── Order book depth (#503) ─── */
+
+export interface OrderBookLevel {
+  /** Price per fraction, in XLM. */
+  price: number;
+  /** Fractions open at this price (not cumulative). */
+  quantity: number;
+}
+
+export interface InvoiceOrderBook {
+  /** Open buy orders. */
+  bids: OrderBookLevel[];
+  /** Open listings. */
+  asks: OrderBookLevel[];
+  /** Mid-price from the API; derived from best bid and ask when absent. */
+  mid_price?: number | null;
+}
+
+export async function fetchInvoiceOrderBook(
+  invoiceId: string,
+  signal?: AbortSignal,
+): Promise<InvoiceOrderBook> {
+  const res = await fetch(`${API_BASE}/invoices/${encodeURIComponent(invoiceId)}/orderbook`, {
+    signal,
+  });
+  if (!res.ok) throw new Error("Failed to fetch order book");
+  return res.json();
+}
