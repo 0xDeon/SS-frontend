@@ -13,6 +13,8 @@ export interface Invoice {
   status: "draft" | "pending" | "open" | "funded" | "settled" | "rejected";
   due_date: string;
   yield_percentage?: number;
+  /** Price of one fraction in XLM; the calculator assumes 1 XLM when absent. */
+  fraction_price?: number;
   /** Minimum investment amount in XLM required for this invoice (#436). */
   min_investment?: number;
   /** Amount the invoice must raise before it can proceed (#462). */

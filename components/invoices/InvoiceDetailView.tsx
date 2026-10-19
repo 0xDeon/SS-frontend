@@ -23,6 +23,7 @@ import { InvoiceMaturityStatus } from "@/components/invoices/InvoiceMaturityStat
 import { InvoiceMetaTags } from "@/components/invoices/InvoiceMetaTags";
 import { InvestorSocialProof } from "@/components/invoices/InvestorSocialProof";
 import { InvoiceStatusBadge } from "@/components/invoices/InvoiceStatusBadge";
+import { ReturnsCalculator } from "@/components/invoices/ReturnsCalculator";
 import { InvestmentModal } from "@/components/invoices/InvestmentModal";
 import { InvoiceRatingWidget } from "@/components/invoices/InvoiceRatingWidget";
 import { ReturnsBreakdown } from "@/components/invoices/ReturnsBreakdown";
@@ -105,11 +106,17 @@ function InvestCallToAction({
   minInvestment,
   maxInvestment,
   fundingCap,
+  yieldPercentage,
+  maturityDate,
+  fractionPrice,
 }: {
   invoiceId: string;
   minInvestment: number;
   maxInvestment: number;
   fundingCap: number;
+  yieldPercentage?: number | null;
+  maturityDate: string;
+  fractionPrice?: number;
 }) {
   const { isConnected } = useWallet();
   const { isApproved, isLoading, status } = useIsKycApproved({
@@ -168,6 +175,12 @@ function InvestCallToAction({
           minInvestment={minInvestment}
           maxInvestment={maxInvestment}
           fundingCap={fundingCap}
+        />
+        <ReturnsCalculator
+          faceValue={fundingCap}
+          yieldPercentage={yieldPercentage}
+          maturityDate={maturityDate}
+          fractionPrice={fractionPrice}
         />
       </CardContent>
     </Card>
@@ -321,6 +334,9 @@ export function InvoiceDetailView({ invoiceId }: InvoiceDetailViewProps) {
           minInvestment={minInvestment}
           maxInvestment={remaining}
           fundingCap={invoice.amount}
+          yieldPercentage={invoice.yield_percentage}
+          maturityDate={invoice.maturity_date ?? invoice.due_date}
+          fractionPrice={invoice.fraction_price}
         />
       ) : (
         <Card data-testid="invest-cta">
